@@ -9,20 +9,40 @@
 
 <style>
 *{box-sizing:border-box}
-body{margin:0;padding:20px;background:#f2f0eb;color:#34332e;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+body{
+ margin:0;padding:20px;background:#f2f0eb;
+ color:#34332e;
+ font-family:-apple-system,BlinkMacSystemFont,sans-serif
+}
 main{max-width:700px;margin:auto}
 h1{font:700 34px Georgia,serif}
 h2{font-size:19px}
 .sub{color:#777;font-size:14px;line-height:1.6}
-.card{background:white;padding:20px;border-radius:18px;margin:16px 0}
-button{width:100%;padding:18px;border:0;border-radius:13px;background:#34372f;color:white;font-weight:bold;margin-top:12px;font-size:15px}
+.card{
+ background:white;padding:20px;border-radius:18px;
+ margin:16px 0
+}
+button{
+ width:100%;padding:18px;border:0;border-radius:13px;
+ background:#34372f;color:white;font-weight:bold;
+ margin-top:12px;font-size:15px
+}
 button:disabled{opacity:.4}
-input[type=file]{width:100%;padding:14px;background:#f7f6f2;border:1px dashed #aaa;border-radius:10px}
+input[type=file]{
+ width:100%;padding:14px;background:#f7f6f2;
+ border:1px dashed #aaa;border-radius:10px
+}
 input[type=range]{width:100%;accent-color:#777}
 label{display:block;margin:16px 0 7px}
-.notice{background:#f5f3ed;padding:14px;border-radius:12px;font-size:13px;line-height:1.6}
+.notice{
+ background:#f5f3ed;padding:14px;border-radius:12px;
+ font-size:13px;line-height:1.6
+}
 #status{font-size:14px;line-height:1.7;white-space:pre-line}
-.row{font-size:13px;padding:12px 0;border-bottom:1px solid #eee;overflow-wrap:anywhere}
+.row{
+ font-size:13px;padding:12px 0;
+ border-bottom:1px solid #eee;overflow-wrap:anywhere
+}
 .row b{float:right}
 .preview{margin:18px 0}
 .preview img{width:100%;height:auto;border-radius:12px}
@@ -36,7 +56,9 @@ label{display:block;margin:16px 0 7px}
 <main>
 
 <h1>Vinted Studio AI</h1>
-<p class="sub">Il tuo laboratorio fotografico · Sfondo greige · AI gratuita</p>
+<p class="sub">
+Il tuo laboratorio fotografico · Sfondo greige · AI gratuita
+</p>
 
 <section class="card">
 <h2>01 · Carica le fotografie</h2>
@@ -49,8 +71,8 @@ Nessuna fotografia selezionata · Massimo 50
 </p>
 
 <p class="hint">
-Compatibile con JPG, JPEG, PNG, WebP e foto iPhone HEIC/HEIF.
-Le foto HEIC vengono convertite automaticamente.
+Compatibile con JPG, JPEG, PNG, WebP e fotografie
+iPhone HEIC/HEIF. Conversione automatica.
 </p>
 </section>
 
@@ -110,6 +132,7 @@ let outputs = [];
 let busy = false;
 let removeBackground = null;
 let heicConverterPromise = null;
+let previewUrls = [];
 
 const MODEL_PATH =
 'https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/';
@@ -121,8 +144,8 @@ function isHeic(file) {
  const type = (file.type || '').toLowerCase();
 
  return /\.(heic|heif)$/.test(name) ||
-        type.includes('heic') ||
-        type.includes('heif');
+ type.includes('heic') ||
+ type.includes('heif');
 }
 
 function isSupportedImage(file) {
@@ -133,7 +156,7 @@ function isSupportedImage(file) {
  /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/.test(name);
 }
 
-// CARICAMENTO CONVERTITORE HEIC
+// CARICAMENTO SCRIPT
 
 function loadScript(src) {
  return new Promise((resolve,reject) => {
@@ -142,46 +165,43 @@ function loadScript(src) {
   script.async = true;
   script.onload = resolve;
   script.onerror = () => reject(
-   new Error('Impossibile caricare il convertitore HEIC. Controlla Internet.')
+   new Error('Impossibile caricare il convertitore.')
   );
   document.head.appendChild(script);
  });
 }
+
+// CONVERTITORE HEIC
 
 async function getHeicConverter() {
 
  if(window.heic2any) return window.heic2any;
 
  if(!heicConverterPromise) {
-
   heicConverterPromise = loadScript(
    'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js'
   ).then(() => {
-
    if(typeof window.heic2any !== 'function') {
     throw new Error('Convertitore HEIC non disponibile.');
    }
-
    return window.heic2any;
-
   }).catch(error => {
    heicConverterPromise = null;
    throw error;
   });
-
  }
 
  return heicConverterPromise;
 }
 
-// CONVERSIONE AUTOMATICA IPHONE
+// CONVERSIONE AUTOMATICA
 
 async function convertIfNeeded(file) {
 
  if(!isHeic(file)) return file;
 
  $('status').textContent =
- 'Conversione della foto iPhone: ' + file.name;
+ 'Conversione fotografia iPhone: '+file.name;
 
  const convert = await getHeicConverter();
 
@@ -199,13 +219,11 @@ async function convertIfNeeded(file) {
   throw new Error('Conversione HEIC non riuscita.');
  }
 
- const name =
- file.name.replace(/\.(heic|heif)$/i,'') + '.jpg';
-
- return new File([blob],name,{
-  type:'image/jpeg',
-  lastModified:Date.now()
- });
+ return new File(
+  [blob],
+  file.name.replace(/\.(heic|heif)$/i,'')+'.jpg',
+  {type:'image/jpeg'}
+ );
 }
 
 // SELEZIONE FOTO
@@ -218,8 +236,11 @@ $('photos').addEventListener('change',event => {
 
  outputs = [];
 
+ previewUrls.forEach(url => URL.revokeObjectURL(url));
+ previewUrls = [];
+
  $('count').textContent = selectedFiles.length
-  ? selectedFiles.length + ' fotografie selezionate · Massimo 50'
+  ? selectedFiles.length+' fotografie selezionate · Massimo 50'
   : 'Nessuna fotografia selezionata · Massimo 50';
 
  $('rows').innerHTML = '';
@@ -227,8 +248,8 @@ $('photos').addEventListener('change',event => {
  $('download').disabled = true;
 
  $('status').textContent = selectedFiles.length
-  ? 'Foto rilevate correttamente. Premi ELABORA LE FOTOGRAFIE.'
-  : 'Non è stata rilevata alcuna foto. Seleziona JPG, PNG, WebP o HEIC.';
+  ? 'Foto riconosciute correttamente. Premi ELABORA LE FOTOGRAFIE.'
+  : 'Nessuna foto rilevata. Seleziona JPG, PNG, WebP o HEIC.';
 
 });
 
@@ -238,7 +259,7 @@ $('texture').addEventListener('input',event => {
  $('tv').textContent = event.target.value;
 });
 
-// CARICAMENTO AI
+// CARICAMENTO MOTORE AI - CORRETTO
 
 async function loadAI() {
 
@@ -247,28 +268,55 @@ async function loadAI() {
  $('status').textContent =
  'Caricamento del motore AI. Attendi...';
 
- try {
+ const sources = [
+  'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm',
+  'https://esm.sh/@imgly/background-removal@1.7.0?bundle'
+ ];
 
-  const module = await import(
-   'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm'
-  );
+ let lastError = null;
 
-  if(typeof module.default !== 'function') {
-   throw new Error('Funzione AI non trovata.');
+ for(const source of sources) {
+
+  try {
+
+   const module = await import(source);
+
+   // Supporta esportazione predefinita e nominata.
+
+   const candidates = [
+    module.removeBackground,
+    module.default,
+    module.default?.removeBackground,
+    module.default?.default
+   ];
+
+   const fn = candidates.find(
+    candidate => typeof candidate === 'function'
+   );
+
+   if(fn) {
+    removeBackground = fn;
+    return;
+   }
+
+   lastError = new Error(
+    'Il modulo non espone la funzione removeBackground.'
+   );
+
+  } catch(error) {
+
+   lastError = error;
+   console.error('Errore caricamento AI:',source,error);
+
   }
 
-  removeBackground = module.default;
-
- } catch(error) {
-
-  console.error(error);
-
-  throw new Error(
-   'Impossibile caricare il motore AI. ' +
-   'Controlla la connessione Internet. ' + error.message
-  );
-
  }
+
+ throw new Error(
+  'Motore AI non disponibile. '+
+  'Controlla la connessione Internet. '+
+  (lastError?.message || '')
+ );
 
 }
 
@@ -288,10 +336,12 @@ async function prepareImage(file) {
    await image.decode();
   } catch(error) {
    throw new Error(
-    'Il browser non riesce ad aprire questa foto. ' +
-    'Formato: ' + (usableFile.type || 'non indicato')
+    'Impossibile aprire la fotografia: '+
+    (usableFile.type || 'formato sconosciuto')
    );
   }
+
+  // Riduzione controllata per iPhone.
 
   const maxSize = 1800;
 
@@ -300,8 +350,13 @@ async function prepareImage(file) {
    maxSize / Math.max(image.naturalWidth,image.naturalHeight)
   );
 
-  const width = Math.max(1,Math.round(image.naturalWidth*scale));
-  const height = Math.max(1,Math.round(image.naturalHeight*scale));
+  const width = Math.max(
+   1,Math.round(image.naturalWidth*scale)
+  );
+
+  const height = Math.max(
+   1,Math.round(image.naturalHeight*scale)
+  );
 
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -323,9 +378,7 @@ async function prepareImage(file) {
   });
 
  } finally {
-
   URL.revokeObjectURL(url);
-
  }
 
 }
@@ -340,10 +393,12 @@ function makeFloor(width,height,level) {
 
  const ctx = canvas.getContext('2d');
 
- const gradient = ctx.createLinearGradient(0,0,width,height);
+ const gradient = ctx.createLinearGradient(
+  0,0,width,height
+ );
 
  gradient.addColorStop(0,'#dedbd3');
- gradient.addColorStop(0.5,'#d7d3ca');
+ gradient.addColorStop(.5,'#d7d3ca');
  gradient.addColorStop(1,'#d1cdc4');
 
  ctx.fillStyle = gradient;
@@ -395,7 +450,7 @@ async function processPhoto(originalFile) {
  await loadAI();
 
  $('status').textContent =
- 'Rimozione dello sfondo AI: ' + originalFile.name;
+ 'Rimozione sfondo AI: '+originalFile.name;
 
  const config = {
 
@@ -416,8 +471,8 @@ async function processPhoto(originalFile) {
 
    if(total>0) {
     $('status').textContent =
-     'Download modello AI: ' +
-     Math.round(current/total*100) + '%';
+     'Caricamento modello AI: '+
+     Math.round(current/total*100)+'%';
    }
 
   }
@@ -447,12 +502,14 @@ async function processPhoto(originalFile) {
 
   const ctx = canvas.getContext('2d');
 
+  if(!ctx) throw new Error('Canvas non disponibile.');
+
   ctx.drawImage(
    makeFloor(width,height,Number($('texture').value)),
    0,0
   );
 
-  // Mantiene posizione e proporzioni del capo.
+  // Il capo mantiene posizione e proporzioni.
 
   ctx.drawImage(image,0,0,width,height);
 
@@ -471,14 +528,12 @@ async function processPhoto(originalFile) {
   };
 
  } finally {
-
   URL.revokeObjectURL(url);
-
  }
 
 }
 
-// PULSANTE ELABORAZIONE
+// ELABORAZIONE COMPLETA
 
 $('start').addEventListener('click',async() => {
 
@@ -492,6 +547,9 @@ $('start').addEventListener('click',async() => {
 
  busy = true;
  outputs = [];
+
+ previewUrls.forEach(url => URL.revokeObjectURL(url));
+ previewUrls = [];
 
  $('start').disabled = true;
  $('download').disabled = true;
@@ -523,9 +581,9 @@ $('start').addEventListener('click',async() => {
     state.textContent = 'In corso';
 
     $('status').textContent =
-     'Elaborazione fotografia ' +
-     (index+1) + ' di ' + selectedFiles.length +
-     ': ' + file.name;
+     'Elaborazione fotografia '+
+     (index+1)+' di '+selectedFiles.length+
+     ': '+file.name;
 
     const result = await processPhoto(file);
 
@@ -542,7 +600,10 @@ $('start').addEventListener('click',async() => {
     title.textContent = result.name;
 
     const preview = document.createElement('img');
-    preview.src = URL.createObjectURL(result.blob);
+    const previewUrl = URL.createObjectURL(result.blob);
+
+    previewUrls.push(previewUrl);
+    preview.src = previewUrl;
     preview.alt = result.name;
 
     box.append(title,preview);
@@ -557,7 +618,8 @@ $('start').addEventListener('click',async() => {
 
     const detail = document.createElement('p');
     detail.className = 'error sub';
-    detail.textContent = error.message || 'Errore non identificato.';
+    detail.textContent =
+     error.message || 'Errore non identificato.';
 
     line.append(detail);
 
@@ -568,13 +630,18 @@ $('start').addEventListener('click',async() => {
   }
 
   $('status').textContent =
-   'Elaborazione terminata.\n' +
+   'Elaborazione terminata.\n'+
    'Fotografie riuscite: '+outputs.length+
-   ' su '+selectedFiles.length+'.\n' +
-   'Fotografie con errori: '+errors+'.\n' +
+   ' su '+selectedFiles.length+'.\n'+
+   'Fotografie con errori: '+errors+'.\n'+
    'Controlla le anteprime prima di scaricare.';
 
   $('download').disabled = outputs.length===0;
+
+ } catch(error) {
+
+  $('status').textContent =
+   'Errore generale: '+error.message;
 
  } finally {
 
