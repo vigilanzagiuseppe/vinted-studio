@@ -4,216 +4,224 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Vinted Studio</title>
+<meta name="theme-color" content="#f2f0eb">
+<title>Vinted Studio AI</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;padding:20px;background:#f2f0eb;color:#34332e;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
-main{max-width:650px;margin:auto}
-h1{font-family:Georgia,serif;font-size:32px}
-.sub{color:#777;font-size:13px}
+body{margin:0;padding:20px;background:#f2f0eb;color:#34332e;font-family:-apple-system,sans-serif}
+main{max-width:700px;margin:auto}
+h1{font:700 34px Georgia,serif}
+.sub{color:#777;font-size:13px;line-height:1.5}
 .card{background:white;padding:18px;border-radius:16px;margin:15px 0}
+h2{font-size:17px}
 button{width:100%;padding:15px;border:0;border-radius:12px;background:#34372f;color:white;font-weight:bold;margin-top:12px}
 button:disabled{opacity:.4}
 input[type=file]{width:100%;padding:12px;background:#f7f6f2;border:1px dashed #aaa;border-radius:10px}
-label{display:block;font-size:13px;margin:15px 0 6px}
 input[type=range]{width:100%}
-small{color:#777}
-#status{font-size:13px;line-height:1.5}
-#results img{width:100%;border-radius:10px;margin-top:10px}
+label{display:block;margin:14px 0 5px;font-size:13px}
+.notice{background:#f5f3ed;padding:12px;border-radius:10px;font-size:12px;line-height:1.5}
+#status{font-size:13px;line-height:1.5;white-space:pre-line}
+.preview{margin:16px 0}
+.preview img{width:100%;height:auto;border-radius:10px}
+.row{font-size:12px;padding:8px 0;border-bottom:1px solid #eee}
+.row b{float:right}
 </style>
 </head>
 <body>
 <main>
-<h1>Vinted Studio</h1>
-<p class="sub">Il tuo laboratorio fotografico · Versione gratuita</p>
+<h1>Vinted Studio AI</h1>
+<p class="sub">Il tuo laboratorio fotografico · Sfondo greige · AI gratuita</p>
 
 <section class="card">
-<h3>01 · Carica le fotografie</h3>
+<h2>01 · Carica le fotografie</h2>
 <input id="photos" type="file" accept="image/*" multiple>
-<p class="sub" id="count">Nessuna foto selezionata</p>
+<p class="sub" id="count">Nessuna foto selezionata · Massimo 50</p>
 </section>
 
 <section class="card">
-<h3>02 · Imposta lo sfondo</h3>
-<p class="sub">Microcemento greige chiaro, opaco e neutro.</p>
-<label for="tolerance">Sensibilità di rimozione dello sfondo: <b id="tv">45</b></label>
-<input id="tolerance" type="range" min="15" max="120" value="45">
-<small>Valore alto: rimuove più colori simili allo sfondo, ma può eliminare parti del capo.</small>
-<label for="soft">Morbidezza dei bordi: <b id="sv">12</b></label>
-<input id="soft" type="range" min="1" max="40" value="12">
+<h2>02 · Il tuo sfondo fisso</h2>
+<p class="sub">Microcemento greige chiaro, opaco, naturale e minimalista.</p>
+<label>Texture: <b id="tv">2</b></label>
+<input id="texture" type="range" min="1" max="3" value="2">
+<p class="notice">
+Il capo deve rimanere nella posizione originale. Non viene spostato, ruotato o ridimensionato. L'AI identifica il soggetto e rimuove lo sfondo circostante. Controlla sempre i dettagli prima di pubblicare.
+</p>
 </section>
 
 <section class="card">
-<h3>03 · Elaborazione</h3>
-<p class="sub">Le immagini vengono elaborate nel browser. Non sono inviate a un server.</p>
-<button id="start">ELABORA LE FOTO</button>
+<h2>03 · Elaborazione AI</h2>
+<p class="sub">Il modello AI viene scaricato al primo utilizzo e lavora direttamente nel browser. Le fotografie non vengono inviate a un server di elaborazione.</p>
+<button id="start">ELABORA LE FOTOGRAFIE</button>
 <p id="status">In attesa delle fotografie.</p>
+<div id="rows"></div>
 <div id="results"></div>
-<button id="download" disabled>SCARICA TUTTE IN ZIP</button>
+<button id="download" disabled>SCARICA TUTTE LE FOTO IN ZIP</button>
 </section>
 
-<p class="sub">Controlla sempre i risultati prima di pubblicarli. Questa versione utilizza una selezione cromatica, non intelligenza artificiale.</p>
+<p class="sub">Consiglio: prova inizialmente 2 fotografie. L'elaborazione di 50 immagini può richiedere molta memoria sull'iPhone.</p>
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script>
+<script type="module">
+import removeBackground from
+'https://esm.sh/@imgly/background-removal@1.7.0';
+
 const $=id=>document.getElementById(id);
-let files=[],outputs=[];
+let files=[],outputs=[],busy=false;
 
 $('photos').onchange=e=>{
- files=Array.from(e.target.files).slice(0,50);
+ files=Array.from(e.target.files||[])
+ .filter(f=>f.type.startsWith('image/')).slice(0,50);
  outputs=[];
  $('count').textContent=files.length+' fotografie selezionate';
- $('status').textContent='Pronto per elaborare.';
  $('results').innerHTML='';
+ $('rows').innerHTML='';
  $('download').disabled=true;
+ $('status').textContent='Pronto per elaborare.';
 };
 
-$('tolerance').oninput=e=>$('tv').textContent=e.target.value;
-$('soft').oninput=e=>$('sv').textContent=e.target.value;
+$('texture').oninput=e=>$('tv').textContent=e.target.value;
 
-function median(a){
- a.sort((x,y)=>x-y);
- return a[Math.floor(a.length/2)];
-}
+function makeFloor(w,h,level){
+ const c=document.createElement('canvas');
+ c.width=w;c.height=h;
+ const x=c.getContext('2d');
+ const g=x.createLinearGradient(0,0,w,h);
+ g.addColorStop(0,'#ded9cf');
+ g.addColorStop(.5,'#d5d0c6');
+ g.addColorStop(1,'#cec9bf');
+ x.fillStyle=g;x.fillRect(0,0,w,h);
 
-function floor(ctx,w,h){
- const g=ctx.createLinearGradient(0,0,w,h);
- g.addColorStop(0,'#d9d4ca');
- g.addColorStop(.5,'#d2cdc3');
- g.addColorStop(1,'#c9c4ba');
- ctx.fillStyle=g;
- ctx.fillRect(0,0,w,h);
- let seed=321987;
+ let seed=82731;
  const rand=()=>{
  seed=(seed*1664525+1013904223)>>>0;
  return seed/4294967296;
  };
- for(let i=0;i<w*h/100;i++){
- const a=rand()*.035;
- ctx.fillStyle=rand()>.5?
- `rgba(255,255,255,${a})`:
- `rgba(70,65,55,${a})`;
- ctx.fillRect(rand()*w,rand()*h,1,1);
+ for(let i=0;i<w*h/(level===1?240:level===2?150:100);i++){
+  const a=rand()*.03;
+  x.fillStyle=rand()>.5?
+  'rgba(255,255,255,'+a+')':
+  'rgba(85,78,68,'+a+')';
+  x.beginPath();
+  x.ellipse(rand()*w,rand()*h,1+rand(),.5+rand(),rand()*3,0,7);
+  x.fill();
  }
-}
-
-async function loadImage(file){
- const url=URL.createObjectURL(file);
- try{
- const img=new Image();
- img.src=url;
- await img.decode();
- return img;
- }finally{
- // L'URL viene liberato dopo la decodifica.
- }
+ return c;
 }
 
 async function process(file){
- const img=await loadImage(file);
- const scale=Math.min(1,1800/Math.max(img.width,img.height));
- const w=Math.round(img.width*scale);
- const h=Math.round(img.height*scale);
+ const transparent=await removeBackground(file);
+ const url=URL.createObjectURL(transparent);
+ try{
+  const img=new Image();
+  img.src=url;
+  await img.decode();
 
- const c=document.createElement('canvas');
- c.width=w;c.height=h;
- const ctx=c.getContext('2d',{willReadFrequently:true});
- ctx.drawImage(img,0,0,w,h);
- const data=ctx.getImageData(0,0,w,h);
- const d=data.data;
+  const w=img.naturalWidth;
+  const h=img.naturalHeight;
+  const c=document.createElement('canvas');
+  c.width=w;c.height=h;
+  const ctx=c.getContext('2d');
 
- // Stima del colore dello sfondo dai bordi.
- let rs=[],gs=[],bs=[];
- const step=Math.max(1,Math.floor(Math.min(w,h)/100));
- for(let x=0;x<w;x+=step){
- for(const y of [0,h-1]){
- const i=(y*w+x)*4;
- rs.push(d[i]);gs.push(d[i+1]);bs.push(d[i+2]);
- }}
- for(let y=0;y<h;y+=step){
- for(const x of [0,w-1]){
- const i=(y*w+x)*4;
- rs.push(d[i]);gs.push(d[i+1]);bs.push(d[i+2]);
- }}
- const bg=[median(rs),median(gs),median(bs)];
- const tolerance=Number($('tolerance').value);
- const feather=Number($('soft').value);
+  ctx.drawImage(makeFloor(w,h,Number($('texture').value)),0,0);
+  // Il capo resta nella stessa posizione e scala.
+  ctx.drawImage(img,0,0,w,h);
 
- // Rende trasparenti i pixel simili al colore medio dei bordi.
- for(let i=0;i<d.length;i+=4){
- const r=d[i]-bg[0],g=d[i+1]-bg[1],b=d[i+2]-bg[2];
- const dist=Math.sqrt(r*r+g*g+b*b);
- let alpha=Math.max(0,Math.min(1,(dist-tolerance)/feather));
- alpha=alpha*alpha*(3-2*alpha);
- d[i+3]=Math.round(d[i+3]*alpha);
+  const blob=await new Promise((resolve,reject)=>{
+   c.toBlob(b=>b?resolve(b):reject(new Error('Esportazione fallita')),'image/jpeg',.94);
+  });
+
+  return {
+   name:file.name.replace(/\.[^.]+$/,'')+'_vinted.jpg',
+   blob
+  };
+ }finally{
+  URL.revokeObjectURL(url);
  }
- ctx.putImageData(data,0,0);
-
- // Composizione sul pavimento greige.
- const out=document.createElement('canvas');
- out.width=w;out.height=h;
- const ox=out.getContext('2d');
- floor(ox,w,h);
- ox.drawImage(c,0,0);
-
- return new Promise(resolve=>{
- out.toBlob(blob=>{
- resolve({
- name:file.name.replace(/\.[^.]+$/,'')+'_vinted.jpg',
- blob
- });
- },'image/jpeg',.94);
- });
 }
 
 $('start').onclick=async()=>{
- if(!files.length)return;
- $('start').disabled=true;
+ if(!files.length||busy)return;
+ busy=true;
  outputs=[];
+ $('start').disabled=true;
+ $('download').disabled=true;
  $('results').innerHTML='';
+ $('rows').innerHTML='';
+
  try{
- for(let i=0;i<files.length;i++){
- $('status').textContent=`Elaborazione ${i+1} di ${files.length}: ${files[i].name}`;
- try{
- const result=await process(files[i]);
- outputs.push(result);
- const url=URL.createObjectURL(result.blob);
- const box=document.createElement('div');
- const title=document.createElement('p');
- title.textContent=result.name;
- title.className='sub';
- const preview=document.createElement('img');
- preview.src=url;
- box.append(title,preview);
- $('results').append(box);
+  for(let i=0;i<files.length;i++){
+   const line=document.createElement('div');
+   line.className='row';
+   const name=document.createElement('span');
+   name.textContent=files[i].name;
+   const state=document.createElement('b');
+   state.textContent='In corso';
+   line.append(name,state);
+   $('rows').append(line);
+
+   $('status').textContent=
+   'Elaborazione AI '+(i+1)+' di '+files.length+
+   '. La prima foto richiede il download del modello.';
+
+   try{
+    const result=await process(files[i]);
+    outputs.push(result);
+    state.textContent='Pronta';
+
+    const box=document.createElement('div');
+    box.className='preview';
+    const title=document.createElement('p');
+    title.textContent=result.name;
+    title.className='sub';
+    const image=document.createElement('img');
+    image.src=URL.createObjectURL(result.blob);
+    box.append(title,image);
+    $('results').append(box);
+   }catch(err){
+    state.textContent='Errore';
+    console.error(err);
+   }
+   await new Promise(r=>setTimeout(r,100));
+  }
+
+  $('status').textContent=
+  'Completato: '+outputs.length+' fotografie riuscite su '+files.length+
+  '. Controlla tutte le anteprime.';
+  $('download').disabled=outputs.length===0;
+
  }catch(err){
- $('status').textContent+=' · Errore su '+files[i].name;
- }
- await new Promise(r=>setTimeout(r,100));
- }
- $('status').textContent=`Completato: ${outputs.length} foto elaborate su ${files.length}.`;
- $('download').disabled=outputs.length===0;
+  $('status').textContent='Errore: '+err.message;
  }finally{
- $('start').disabled=false;
+  busy=false;
+  $('start').disabled=false;
  }
 };
 
 $('download').onclick=async()=>{
  if(!outputs.length)return;
- if(typeof JSZip==='undefined'){
- $('status').textContent='Impossibile caricare il componente ZIP. Riprova con connessione internet.';
- return;
+ if(!window.JSZip){
+  $('status').textContent='Libreria ZIP non disponibile.';
+  return;
  }
+ $('download').disabled=true;
  $('status').textContent='Preparazione archivio ZIP...';
- const zip=new JSZip();
- outputs.forEach(x=>zip.file(x.name,x.blob));
- const blob=await zip.generateAsync({type:'blob'});
- const url=URL.createObjectURL(blob);
- const a=document.createElement('a');
- a.href=url;a.download='Vinted-Studio.zip';a.click();
- setTimeout(()=>URL.revokeObjectURL(url),30000);
- $('status').textContent='Archivio pronto.';
+ try{
+  const zip=new JSZip();
+  outputs.forEach(o=>zip.file(o.name,o.blob));
+  const blob=await zip.generateAsync({type:'blob'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='Vinted-Studio-AI.zip';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),30000);
+  $('status').textContent='Archivio pronto!';
+ }catch(err){
+  $('status').textContent='Errore ZIP: '+err.message;
+ }finally{
+  $('download').disabled=false;
+ }
 };
 </script>
 </body>
