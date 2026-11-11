@@ -9,38 +9,26 @@
 
 <style>
 *{box-sizing:border-box}
-body{
- margin:0;padding:20px;background:#f2f0eb;
- color:#34332e;font-family:-apple-system,BlinkMacSystemFont,sans-serif
-}
+body{margin:0;padding:20px;background:#f2f0eb;color:#34332e;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
 main{max-width:700px;margin:auto}
 h1{font:700 34px Georgia,serif}
 h2{font-size:19px}
 .sub{color:#777;font-size:14px;line-height:1.6}
 .card{background:white;padding:20px;border-radius:18px;margin:16px 0}
-button{
- width:100%;padding:18px;border:0;border-radius:13px;
- background:#34372f;color:white;font-weight:bold;
- margin-top:12px;font-size:15px
-}
+button{width:100%;padding:18px;border:0;border-radius:13px;background:#34372f;color:white;font-weight:bold;margin-top:12px;font-size:15px}
 button:disabled{opacity:.4}
-input[type=file]{
- width:100%;padding:14px;background:#f7f6f2;
- border:1px dashed #aaa;border-radius:10px
-}
+input[type=file]{width:100%;padding:14px;background:#f7f6f2;border:1px dashed #aaa;border-radius:10px}
 input[type=range]{width:100%;accent-color:#777}
 label{display:block;margin:16px 0 7px}
-.notice{
- background:#f5f3ed;padding:14px;border-radius:12px;
- font-size:13px;line-height:1.6
-}
+.notice{background:#f5f3ed;padding:14px;border-radius:12px;font-size:13px;line-height:1.6}
 #status{font-size:14px;line-height:1.7;white-space:pre-line}
-.row{font-size:13px;padding:12px 0;border-bottom:1px solid #eee}
+.row{font-size:13px;padding:12px 0;border-bottom:1px solid #eee;overflow-wrap:anywhere}
 .row b{float:right}
 .preview{margin:18px 0}
 .preview img{width:100%;height:auto;border-radius:12px}
 .error{color:#b73525}
 .success{color:#287746}
+.hint{font-size:12px;color:#777;line-height:1.5}
 </style>
 </head>
 
@@ -48,20 +36,27 @@ label{display:block;margin:16px 0 7px}
 <main>
 
 <h1>Vinted Studio AI</h1>
-<p class="sub">
-Il tuo laboratorio fotografico · Sfondo greige · AI gratuita
-</p>
+<p class="sub">Il tuo laboratorio fotografico · Sfondo greige · AI gratuita</p>
 
 <section class="card">
 <h2>01 · Carica le fotografie</h2>
-<input id="photos" type="file" accept="image/*" multiple>
+
+<input id="photos" type="file"
+accept="image/*,.heic,.heif" multiple>
+
 <p class="sub" id="count">
 Nessuna fotografia selezionata · Massimo 50
+</p>
+
+<p class="hint">
+Compatibile con JPG, JPEG, PNG, WebP e foto iPhone HEIC/HEIF.
+Le foto HEIC vengono convertite automaticamente.
 </p>
 </section>
 
 <section class="card">
 <h2>02 · Il tuo sfondo fisso</h2>
+
 <p class="sub">
 Microcemento greige chiaro, opaco, naturale e minimalista.
 </p>
@@ -70,24 +65,25 @@ Microcemento greige chiaro, opaco, naturale e minimalista.
 <input id="texture" type="range" min="1" max="3" value="2">
 
 <div class="notice">
-Il capo deve rimanere nella posizione originale.
-Non viene intenzionalmente spostato, ruotato o ridimensionato.
-L'AI identifica il soggetto e rimuove lo sfondo circostante.
+L'AI rimuove lo sfondo circostante e mantiene il capo
+nella posizione e nelle proporzioni dell'immagine originale.
 Controlla sempre i dettagli prima di pubblicare.
 </div>
 </section>
 
 <section class="card">
 <h2>03 · Elaborazione AI</h2>
+
 <p class="sub">
-Il motore AI viene scaricato al primo utilizzo.
-L'elaborazione avviene direttamente nel browser.
-Le fotografie non vengono inviate a un server di elaborazione.
+Il motore AI viene scaricato al primo utilizzo e lavora
+direttamente nel browser. Le fotografie non vengono
+inviate a un server di elaborazione.
 </p>
 
 <button id="start">ELABORA LE FOTOGRAFIE</button>
 
 <p id="status">In attesa delle fotografie.</p>
+
 <div id="rows"></div>
 <div id="results"></div>
 
@@ -109,77 +105,167 @@ Su iPhone elabora piccoli gruppi per evitare problemi di memoria.
 
 const $ = id => document.getElementById(id);
 
-let files = [];
+let selectedFiles = [];
 let outputs = [];
 let busy = false;
 let removeBackground = null;
+let heicConverterPromise = null;
 
 const MODEL_PATH =
 'https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/';
 
+// RICONOSCIMENTO FORMATI
+
+function isHeic(file) {
+ const name = (file.name || '').toLowerCase();
+ const type = (file.type || '').toLowerCase();
+
+ return /\.(heic|heif)$/.test(name) ||
+        type.includes('heic') ||
+        type.includes('heif');
+}
+
+function isSupportedImage(file) {
+ const name = (file.name || '').toLowerCase();
+ const type = (file.type || '').toLowerCase();
+
+ return type.startsWith('image/') ||
+ /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/.test(name);
+}
+
+// CARICAMENTO CONVERTITORE HEIC
+
+function loadScript(src) {
+ return new Promise((resolve,reject) => {
+  const script = document.createElement('script');
+  script.src = src;
+  script.async = true;
+  script.onload = resolve;
+  script.onerror = () => reject(
+   new Error('Impossibile caricare il convertitore HEIC. Controlla Internet.')
+  );
+  document.head.appendChild(script);
+ });
+}
+
+async function getHeicConverter() {
+
+ if(window.heic2any) return window.heic2any;
+
+ if(!heicConverterPromise) {
+
+  heicConverterPromise = loadScript(
+   'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js'
+  ).then(() => {
+
+   if(typeof window.heic2any !== 'function') {
+    throw new Error('Convertitore HEIC non disponibile.');
+   }
+
+   return window.heic2any;
+
+  }).catch(error => {
+   heicConverterPromise = null;
+   throw error;
+  });
+
+ }
+
+ return heicConverterPromise;
+}
+
+// CONVERSIONE AUTOMATICA IPHONE
+
+async function convertIfNeeded(file) {
+
+ if(!isHeic(file)) return file;
+
+ $('status').textContent =
+ 'Conversione della foto iPhone: ' + file.name;
+
+ const convert = await getHeicConverter();
+
+ const converted = await convert({
+  blob:file,
+  toType:'image/jpeg',
+  quality:0.94
+ });
+
+ const blob = Array.isArray(converted)
+  ? converted[0]
+  : converted;
+
+ if(!blob || !blob.size) {
+  throw new Error('Conversione HEIC non riuscita.');
+ }
+
+ const name =
+ file.name.replace(/\.(heic|heif)$/i,'') + '.jpg';
+
+ return new File([blob],name,{
+  type:'image/jpeg',
+  lastModified:Date.now()
+ });
+}
+
 // SELEZIONE FOTO
 
-$('photos').addEventListener('change',e=>{
+$('photos').addEventListener('change',event => {
 
- files = Array.from(e.target.files || [])
- .filter(f=>
-  f.type.startsWith('image/') ||
-  /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name)
- )
- .slice(0,50);
+ selectedFiles = Array.from(event.target.files || [])
+  .filter(isSupportedImage)
+  .slice(0,50);
 
  outputs = [];
 
- $('count').textContent =
- files.length+' fotografie selezionate · Massimo 50';
+ $('count').textContent = selectedFiles.length
+  ? selectedFiles.length + ' fotografie selezionate · Massimo 50'
+  : 'Nessuna fotografia selezionata · Massimo 50';
 
- $('results').innerHTML = '';
  $('rows').innerHTML = '';
+ $('results').innerHTML = '';
  $('download').disabled = true;
 
- $('status').textContent = files.length
- ? 'Fotografie caricate. Pronto per elaborare.'
- : 'Nessuna fotografia selezionata.';
+ $('status').textContent = selectedFiles.length
+  ? 'Foto rilevate correttamente. Premi ELABORA LE FOTOGRAFIE.'
+  : 'Non è stata rilevata alcuna foto. Seleziona JPG, PNG, WebP o HEIC.';
 
 });
 
 // TEXTURE
 
-$('texture').addEventListener('input',e=>{
- $('tv').textContent=e.target.value;
+$('texture').addEventListener('input',event => {
+ $('tv').textContent = event.target.value;
 });
 
-// CARICAMENTO MOTORE AI
+// CARICAMENTO AI
 
-async function loadAI(){
+async function loadAI() {
 
  if(removeBackground) return;
 
  $('status').textContent =
- 'Connessione al motore AI IMG.LY...';
+ 'Caricamento del motore AI. Attendi...';
 
- try{
+ try {
 
-  const aiModule = await import(
+  const module = await import(
    'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm'
   );
 
-  const fn = aiModule.default;
-
-  if(typeof fn !== 'function'){
-   throw new Error('Funzione AI non trovata nel modulo.');
+  if(typeof module.default !== 'function') {
+   throw new Error('Funzione AI non trovata.');
   }
 
-  removeBackground = fn;
+  removeBackground = module.default;
 
- }catch(error){
+ } catch(error) {
 
-  console.error('Errore caricamento AI:',error);
+  console.error(error);
 
   throw new Error(
-   'Impossibile scaricare il motore AI. '+
-   'Controlla la connessione Internet e riprova. '+
-   'Dettaglio: '+error.message
+   'Impossibile caricare il motore AI. ' +
+   'Controlla la connessione Internet. ' + error.message
   );
 
  }
@@ -188,47 +274,55 @@ async function loadAI(){
 
 // PREPARAZIONE FOTO
 
-async function prepareImage(file){
+async function prepareImage(file) {
 
- const url = URL.createObjectURL(file);
+ const usableFile = await convertIfNeeded(file);
+ const url = URL.createObjectURL(usableFile);
 
- try{
+ try {
 
-  const img = new Image();
-  img.src = url;
+  const image = new Image();
+  image.src = url;
 
-  await img.decode();
+  try {
+   await image.decode();
+  } catch(error) {
+   throw new Error(
+    'Il browser non riesce ad aprire questa foto. ' +
+    'Formato: ' + (usableFile.type || 'non indicato')
+   );
+  }
 
   const maxSize = 1800;
 
   const scale = Math.min(
    1,
-   maxSize / Math.max(img.naturalWidth,img.naturalHeight)
+   maxSize / Math.max(image.naturalWidth,image.naturalHeight)
   );
 
-  const w = Math.round(img.naturalWidth*scale);
-  const h = Math.round(img.naturalHeight*scale);
+  const width = Math.max(1,Math.round(image.naturalWidth*scale));
+  const height = Math.max(1,Math.round(image.naturalHeight*scale));
 
   const canvas = document.createElement('canvas');
-  canvas.width=w;
-  canvas.height=h;
+  canvas.width = width;
+  canvas.height = height;
 
-  const ctx=canvas.getContext('2d');
+  const ctx = canvas.getContext('2d');
 
-  ctx.drawImage(img,0,0,w,h);
+  if(!ctx) throw new Error('Canvas non disponibile.');
 
-  return await new Promise((resolve,reject)=>{
+  ctx.drawImage(image,0,0,width,height);
 
-   canvas.toBlob(blob=>{
+  return await new Promise((resolve,reject) => {
 
+   canvas.toBlob(blob => {
     if(blob) resolve(blob);
-    else reject(new Error('Preparazione foto non riuscita.'));
-
-   },'image/jpeg',0.96);
+    else reject(new Error('Conversione JPEG non riuscita.'));
+   },'image/jpeg',0.95);
 
   });
 
- }finally{
+ } finally {
 
   URL.revokeObjectURL(url);
 
@@ -238,76 +332,72 @@ async function prepareImage(file){
 
 // SFONDO GREIGE
 
-function makeFloor(w,h,level){
+function makeFloor(width,height,level) {
 
- const canvas=document.createElement('canvas');
- canvas.width=w;
- canvas.height=h;
+ const canvas = document.createElement('canvas');
+ canvas.width = width;
+ canvas.height = height;
 
- const ctx=canvas.getContext('2d');
+ const ctx = canvas.getContext('2d');
 
- const gradient=ctx.createLinearGradient(0,0,w,h);
+ const gradient = ctx.createLinearGradient(0,0,width,height);
 
  gradient.addColorStop(0,'#dedbd3');
- gradient.addColorStop(.5,'#d7d3ca');
+ gradient.addColorStop(0.5,'#d7d3ca');
  gradient.addColorStop(1,'#d1cdc4');
 
- ctx.fillStyle=gradient;
- ctx.fillRect(0,0,w,h);
+ ctx.fillStyle = gradient;
+ ctx.fillRect(0,0,width,height);
 
- const tile=document.createElement('canvas');
- tile.width=256;
- tile.height=256;
+ const tile = document.createElement('canvas');
+ tile.width = 256;
+ tile.height = 256;
 
- const tctx=tile.getContext('2d');
- const pixels=tctx.createImageData(256,256);
+ const tileCtx = tile.getContext('2d');
+ const pixels = tileCtx.createImageData(256,256);
 
- let seed=82731;
+ let seed = 82731;
 
- function random(){
-  seed=(seed*1664525+1013904223)>>>0;
+ function random() {
+  seed = (seed*1664525+1013904223)>>>0;
   return seed/4294967296;
  }
 
- const intensity=[3,5,8][level-1];
+ const intensity = [3,5,8][level-1];
 
- for(let i=0;i<pixels.data.length;i+=4){
+ for(let i=0;i<pixels.data.length;i+=4) {
 
-  const noise=(random()-.5)*intensity;
+  const noise = (random()-.5)*intensity;
 
-  pixels.data[i]=210+noise;
-  pixels.data[i+1]=207+noise;
-  pixels.data[i+2]=198+noise;
-  pixels.data[i+3]=255;
+  pixels.data[i] = 210+noise;
+  pixels.data[i+1] = 207+noise;
+  pixels.data[i+2] = 198+noise;
+  pixels.data[i+3] = 255;
 
  }
 
- tctx.putImageData(pixels,0,0);
+ tileCtx.putImageData(pixels,0,0);
 
- ctx.globalAlpha=.22;
- ctx.fillStyle=ctx.createPattern(tile,'repeat');
- ctx.fillRect(0,0,w,h);
- ctx.globalAlpha=1;
+ ctx.globalAlpha = .22;
+ ctx.fillStyle = ctx.createPattern(tile,'repeat');
+ ctx.fillRect(0,0,width,height);
+ ctx.globalAlpha = 1;
 
  return canvas;
-
 }
 
 // ELABORAZIONE SINGOLA FOTO
 
-async function processPhoto(file){
+async function processPhoto(originalFile) {
+
+ const input = await prepareImage(originalFile);
 
  await loadAI();
 
  $('status').textContent =
- 'Preparazione di '+file.name+'...';
+ 'Rimozione dello sfondo AI: ' + originalFile.name;
 
- const input=await prepareImage(file);
-
- $('status').textContent =
- 'Rimozione sfondo AI: '+file.name;
-
- const config={
+ const config = {
 
   publicPath:MODEL_PATH,
 
@@ -315,78 +405,72 @@ async function processPhoto(file){
 
   device:'cpu',
 
-  debug:true,
+  debug:false,
 
   output:{
    format:'image/png',
    type:'foreground'
   },
 
-  progress:(key,current,total)=>{
+  progress:(key,current,total) => {
 
-   if(total>0){
-
-    $('status').textContent=
-     'Download AI: '+key+' '+
-     Math.round(current/total*100)+'%';
-
+   if(total>0) {
+    $('status').textContent =
+     'Download modello AI: ' +
+     Math.round(current/total*100) + '%';
    }
 
   }
 
  };
 
- const transparent=await removeBackground(input,config);
+ const transparent = await removeBackground(input,config);
 
- if(!transparent || transparent.size===0){
-  throw new Error('Il motore AI non ha restituito un'immagine.');
+ if(!transparent || !transparent.size) {
+  throw new Error('Il motore AI non ha restituito un’immagine.');
  }
 
- const url=URL.createObjectURL(transparent);
+ const url = URL.createObjectURL(transparent);
 
- try{
+ try {
 
-  const img=new Image();
-  img.src=url;
+  const image = new Image();
+  image.src = url;
+  await image.decode();
 
-  await img.decode();
+  const width = image.naturalWidth;
+  const height = image.naturalHeight;
 
-  const w=img.naturalWidth;
-  const h=img.naturalHeight;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
 
-  const canvas=document.createElement('canvas');
-  canvas.width=w;
-  canvas.height=h;
+  const ctx = canvas.getContext('2d');
 
-  const ctx=canvas.getContext('2d');
-
-  const floor=makeFloor(
-   w,h,Number($('texture').value)
+  ctx.drawImage(
+   makeFloor(width,height,Number($('texture').value)),
+   0,0
   );
 
-  ctx.drawImage(floor,0,0);
+  // Mantiene posizione e proporzioni del capo.
 
-  // Mantiene posizione e proporzioni del soggetto.
+  ctx.drawImage(image,0,0,width,height);
 
-  ctx.drawImage(img,0,0,w,h);
+  const blob = await new Promise((resolve,reject) => {
 
-  const blob=await new Promise((resolve,reject)=>{
-
-   canvas.toBlob(b=>{
-
-    if(b) resolve(b);
+   canvas.toBlob(result => {
+    if(result) resolve(result);
     else reject(new Error('Esportazione JPEG fallita.'));
-
    },'image/jpeg',0.94);
 
   });
 
-  return{
-   name:file.name.replace(/\.[^.]+$/,'')+'_vinted.jpg',
+  return {
+   name:originalFile.name.replace(/\.[^.]+$/,'')+'_vinted.jpg',
    blob
   };
 
- }finally{
+ } finally {
 
   URL.revokeObjectURL(url);
 
@@ -396,108 +480,106 @@ async function processPhoto(file){
 
 // PULSANTE ELABORAZIONE
 
-$('start').addEventListener('click',async()=>{
+$('start').addEventListener('click',async() => {
 
- if(!files.length || busy){
+ if(busy) return;
 
-  if(!files.length){
-   $('status').textContent=
-   'Prima devi selezionare almeno una fotografia.';
-  }
-
+ if(!selectedFiles.length) {
+  $('status').textContent =
+   'Prima seleziona almeno una fotografia nel riquadro 01.';
   return;
-
  }
 
- busy=true;
- outputs=[];
+ busy = true;
+ outputs = [];
 
- $('start').disabled=true;
- $('download').disabled=true;
- $('rows').innerHTML='';
- $('results').innerHTML='';
+ $('start').disabled = true;
+ $('download').disabled = true;
+ $('rows').innerHTML = '';
+ $('results').innerHTML = '';
 
- let errors=0;
+ let errors = 0;
 
- try{
+ try {
 
-  for(let i=0;i<files.length;i++){
+  for(let index=0;index<selectedFiles.length;index++) {
 
-   const line=document.createElement('div');
-   line.className='row';
+   const file = selectedFiles[index];
 
-   const name=document.createElement('span');
-   name.textContent=files[i].name;
+   const line = document.createElement('div');
+   line.className = 'row';
 
-   const state=document.createElement('b');
-   state.textContent='In corso';
+   const name = document.createElement('span');
+   name.textContent = file.name;
+
+   const state = document.createElement('b');
+   state.textContent = 'In attesa';
 
    line.append(name,state);
    $('rows').append(line);
 
-   $('status').textContent=
-   'Elaborazione fotografia '+(i+1)+
-   ' di '+files.length+'. Attendi...';
+   try {
 
-   try{
+    state.textContent = 'In corso';
 
-    const result=await processPhoto(files[i]);
+    $('status').textContent =
+     'Elaborazione fotografia ' +
+     (index+1) + ' di ' + selectedFiles.length +
+     ': ' + file.name;
+
+    const result = await processPhoto(file);
 
     outputs.push(result);
 
-    state.textContent='Pronta';
-    state.className='success';
+    state.textContent = 'Pronta';
+    state.className = 'success';
 
-    const box=document.createElement('div');
-    box.className='preview';
+    const box = document.createElement('div');
+    box.className = 'preview';
 
-    const title=document.createElement('p');
-    title.className='sub';
-    title.textContent=result.name;
+    const title = document.createElement('p');
+    title.className = 'sub';
+    title.textContent = result.name;
 
-    const image=document.createElement('img');
-    image.src=URL.createObjectURL(result.blob);
-    image.alt=result.name;
+    const preview = document.createElement('img');
+    preview.src = URL.createObjectURL(result.blob);
+    preview.alt = result.name;
 
-    box.append(title,image);
+    box.append(title,preview);
     $('results').append(box);
 
-   }catch(err){
+   } catch(error) {
 
     errors++;
 
-    state.textContent='Errore';
-    state.className='error';
+    state.textContent = 'Errore';
+    state.className = 'error';
 
-    const message=document.createElement('p');
-    message.className='error sub';
-    message.textContent=err.message;
+    const detail = document.createElement('p');
+    detail.className = 'error sub';
+    detail.textContent = error.message || 'Errore non identificato.';
 
-    line.append(message);
+    line.append(detail);
 
-    console.error(err);
+    console.error('Errore foto:',file.name,error);
 
    }
 
   }
 
-  $('status').textContent=
-   'Elaborazione terminata.\n'+
+  $('status').textContent =
+   'Elaborazione terminata.\n' +
    'Fotografie riuscite: '+outputs.length+
-   ' su '+files.length+'.\n'+
-   'Fotografie con errori: '+errors+'.\n'+
+   ' su '+selectedFiles.length+'.\n' +
+   'Fotografie con errori: '+errors+'.\n' +
    'Controlla le anteprime prima di scaricare.';
 
-  $('download').disabled=outputs.length===0;
+  $('download').disabled = outputs.length===0;
 
- }catch(err){
+ } finally {
 
-  $('status').textContent='Errore: '+err.message;
-
- }finally{
-
-  busy=false;
-  $('start').disabled=false;
+  busy = false;
+  $('start').disabled = false;
 
  }
 
@@ -505,62 +587,58 @@ $('start').addEventListener('click',async()=>{
 
 // DOWNLOAD ZIP
 
-$('download').addEventListener('click',async()=>{
+$('download').addEventListener('click',async() => {
 
  if(!outputs.length) return;
 
- if(!window.JSZip){
-
-  $('status').textContent=
-  'Libreria ZIP non disponibile. Ricarica la pagina.';
-
+ if(!window.JSZip) {
+  $('status').textContent =
+   'Libreria ZIP non disponibile. Ricarica la pagina.';
   return;
-
  }
 
- $('download').disabled=true;
+ $('download').disabled = true;
+ $('status').textContent = 'Preparazione archivio ZIP...';
 
- $('status').textContent='Preparazione archivio ZIP...';
+ try {
 
- try{
+  const zip = new JSZip();
 
-  const zip=new JSZip();
-
-  outputs.forEach(file=>{
+  outputs.forEach(file => {
    zip.file(file.name,file.blob);
   });
 
-  const blob=await zip.generateAsync({
+  const blob = await zip.generateAsync({
    type:'blob',
    compression:'DEFLATE',
    compressionOptions:{level:3}
   });
 
-  const url=URL.createObjectURL(blob);
+  const url = URL.createObjectURL(blob);
 
-  const link=document.createElement('a');
-  link.href=url;
-  link.download='Vinted-Studio-AI.zip';
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'Vinted-Studio-AI.zip';
 
   document.body.appendChild(link);
   link.click();
   link.remove();
 
-  setTimeout(()=>{
+  setTimeout(() => {
    URL.revokeObjectURL(url);
   },60000);
 
-  $('status').textContent=
-  'Archivio ZIP creato. Controlla i download di Safari.';
+  $('status').textContent =
+   'Archivio ZIP creato. Controlla i download di Safari.';
 
- }catch(err){
+ } catch(error) {
 
-  $('status').textContent=
-  'Errore ZIP: '+err.message;
+  $('status').textContent =
+   'Errore ZIP: '+error.message;
 
- }finally{
+ } finally {
 
-  $('download').disabled=false;
+  $('download').disabled = false;
 
  }
 
