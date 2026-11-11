@@ -9,46 +9,79 @@
 
 <style>
 *{box-sizing:border-box}
+
 body{
- margin:0;padding:20px;background:#f2f0eb;
+ margin:0;
+ padding:20px;
+ background:#f2f0eb;
  color:#34332e;
- font-family:-apple-system,BlinkMacSystemFont,sans-serif
+ font-family:-apple-system,BlinkMacSystemFont,sans-serif;
 }
+
 main{max-width:700px;margin:auto}
+
 h1{font:700 34px Georgia,serif}
 h2{font-size:19px}
+
 .sub{color:#777;font-size:14px;line-height:1.6}
+
 .card{
- background:white;padding:20px;border-radius:18px;
- margin:16px 0
+ background:white;
+ padding:20px;
+ border-radius:20px;
+ margin:18px 0;
 }
+
 button{
- width:100%;padding:18px;border:0;border-radius:13px;
- background:#34372f;color:white;font-weight:bold;
- margin-top:12px;font-size:15px
+ width:100%;
+ padding:17px;
+ border:0;
+ border-radius:13px;
+ background:#34372f;
+ color:white;
+ font-weight:bold;
+ font-size:15px;
+ margin-top:14px;
 }
+
 button:disabled{opacity:.4}
+
 input[type=file]{
- width:100%;padding:14px;background:#f7f6f2;
- border:1px dashed #aaa;border-radius:10px
+ width:100%;
+ padding:14px;
+ background:#f7f6f2;
+ border:1px dashed #aaa;
+ border-radius:10px;
 }
-input[type=range]{width:100%;accent-color:#777}
-label{display:block;margin:16px 0 7px}
+
+input[type=range]{width:100%}
+
+label{display:block;margin:15px 0 6px}
+
 .notice{
- background:#f5f3ed;padding:14px;border-radius:12px;
- font-size:13px;line-height:1.6
+ background:#f5f3ed;
+ padding:15px;
+ border-radius:12px;
+ line-height:1.6;
+ font-size:14px;
 }
+
 #status{font-size:14px;line-height:1.7;white-space:pre-line}
+
 .row{
- font-size:13px;padding:12px 0;
- border-bottom:1px solid #eee;overflow-wrap:anywhere
+ padding:12px 0;
+ border-bottom:1px solid #eee;
+ font-size:14px;
 }
+
 .row b{float:right}
-.preview{margin:18px 0}
+
+.preview{margin:20px 0}
 .preview img{width:100%;height:auto;border-radius:12px}
-.error{color:#b73525}
-.success{color:#287746}
-.hint{font-size:12px;color:#777;line-height:1.5}
+
+.error{color:#b63827}
+.success{color:#28794d}
+
 </style>
 </head>
 
@@ -56,67 +89,75 @@ label{display:block;margin:16px 0 7px}
 <main>
 
 <h1>Vinted Studio AI</h1>
+
 <p class="sub">
-Il tuo laboratorio fotografico · Sfondo greige · AI gratuita
+Il tuo laboratorio fotografico · Sfondo greige professionale
 </p>
 
 <section class="card">
+
 <h2>01 · Carica le fotografie</h2>
 
-<input id="photos" type="file"
-accept="image/*,.heic,.heif" multiple>
+<input id="photos" type="file" accept="image/*" multiple>
 
 <p class="sub" id="count">
 Nessuna fotografia selezionata · Massimo 50
 </p>
 
-<p class="hint">
-Compatibile con JPG, JPEG, PNG, WebP e fotografie
-iPhone HEIC/HEIF. Conversione automatica.
-</p>
 </section>
 
 <section class="card">
+
 <h2>02 · Il tuo sfondo fisso</h2>
 
 <p class="sub">
 Microcemento greige chiaro, opaco, naturale e minimalista.
 </p>
 
-<label>Texture: <b id="tv">2</b></label>
+<label>
+Texture: <b id="tv">2</b>
+</label>
+
 <input id="texture" type="range" min="1" max="3" value="2">
 
 <div class="notice">
-L'AI rimuove lo sfondo circostante e mantiene il capo
-nella posizione e nelle proporzioni dell'immagine originale.
-Controlla sempre i dettagli prima di pubblicare.
+L'intelligenza artificiale rimuove lo sfondo circostante.
+
+Il capo, la fodera interna, il colletto, le cerniere, le etichette e le scritte devono essere conservati.
+
+Il sistema cerca inoltre di recuperare le zone interne erroneamente eliminate dalla maschera AI.
+
+Controlla sempre le fotografie prima di pubblicarle.
 </div>
+
 </section>
 
 <section class="card">
+
 <h2>03 · Elaborazione AI</h2>
 
 <p class="sub">
-Il motore AI viene scaricato al primo utilizzo e lavora
-direttamente nel browser. Le fotografie non vengono
-inviate a un server di elaborazione.
+Motore AI di rimozione dello sfondo. Il modello viene scaricato al primo utilizzo. Le immagini vengono elaborate nel browser.
 </p>
 
-<button id="start">ELABORA LE FOTOGRAFIE</button>
+<button id="start">
+ELABORA LE FOTOGRAFIE
+</button>
 
 <p id="status">In attesa delle fotografie.</p>
 
 <div id="rows"></div>
+
 <div id="results"></div>
 
 <button id="download" disabled>
 SCARICA TUTTE LE FOTO IN ZIP
 </button>
+
 </section>
 
 <p class="sub">
-Consiglio: inizia con 1 o 2 fotografie.
-Su iPhone elabora piccoli gruppi per evitare problemi di memoria.
+Consiglio: utilizza inizialmente 1 o 2 fotografie. Su iPhone, gruppi piccoli riducono il rischio di problemi di memoria.
 </p>
 
 </main>
@@ -125,587 +166,518 @@ Su iPhone elabora piccoli gruppi per evitare problemi di memoria.
 
 <script type="module">
 
-const $ = id => document.getElementById(id);
+const $=id=>document.getElementById(id);
 
-let selectedFiles = [];
-let outputs = [];
-let busy = false;
-let removeBackground = null;
-let heicConverterPromise = null;
-let previewUrls = [];
+let files=[];
+let outputs=[];
+let busy=false;
+let removeBackground=null;
 
-const MODEL_PATH =
-'https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/';
+$('photos').addEventListener('change',e=>{
 
-// RICONOSCIMENTO FORMATI
+ files=Array.from(e.target.files||[])
+ .filter(f=>f.type.startsWith('image/'))
+ .slice(0,50);
 
-function isHeic(file) {
- const name = (file.name || '').toLowerCase();
- const type = (file.type || '').toLowerCase();
+ outputs=[];
 
- return /\.(heic|heif)$/.test(name) ||
- type.includes('heic') ||
- type.includes('heif');
-}
+ $('count').textContent=
+ files.length+' fotografie selezionate';
 
-function isSupportedImage(file) {
- const name = (file.name || '').toLowerCase();
- const type = (file.type || '').toLowerCase();
+ $('rows').innerHTML='';
+ $('results').innerHTML='';
+ $('download').disabled=true;
 
- return type.startsWith('image/') ||
- /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/.test(name);
-}
+ $('status').textContent=
+ files.length?'Pronto per elaborare.':'Nessuna fotografia selezionata.';
 
-// CARICAMENTO SCRIPT
+});
 
-function loadScript(src) {
- return new Promise((resolve,reject) => {
-  const script = document.createElement('script');
-  script.src = src;
-  script.async = true;
-  script.onload = resolve;
-  script.onerror = () => reject(
-   new Error('Impossibile caricare il convertitore.')
-  );
-  document.head.appendChild(script);
- });
-}
+$('texture').addEventListener('input',e=>{
+ $('tv').textContent=e.target.value;
+});
 
-// CONVERTITORE HEIC
+async function loadAI(){
 
-async function getHeicConverter() {
+ if(removeBackground)return;
 
- if(window.heic2any) return window.heic2any;
+ $('status').textContent=
+ 'Caricamento del motore AI. Attendi il download del modello...';
 
- if(!heicConverterPromise) {
-  heicConverterPromise = loadScript(
-   'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js'
-  ).then(() => {
-   if(typeof window.heic2any !== 'function') {
-    throw new Error('Convertitore HEIC non disponibile.');
-   }
-   return window.heic2any;
-  }).catch(error => {
-   heicConverterPromise = null;
-   throw error;
-  });
- }
-
- return heicConverterPromise;
-}
-
-// CONVERSIONE AUTOMATICA
-
-async function convertIfNeeded(file) {
-
- if(!isHeic(file)) return file;
-
- $('status').textContent =
- 'Conversione fotografia iPhone: '+file.name;
-
- const convert = await getHeicConverter();
-
- const converted = await convert({
-  blob:file,
-  toType:'image/jpeg',
-  quality:0.94
- });
-
- const blob = Array.isArray(converted)
-  ? converted[0]
-  : converted;
-
- if(!blob || !blob.size) {
-  throw new Error('Conversione HEIC non riuscita.');
- }
-
- return new File(
-  [blob],
-  file.name.replace(/\.(heic|heif)$/i,'')+'.jpg',
-  {type:'image/jpeg'}
+ const module=await import(
+ 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm'
  );
+
+ removeBackground=module.default;
+
+ if(typeof removeBackground!=='function'){
+  throw new Error('Motore AI non disponibile.');
+ }
 }
 
-// SELEZIONE FOTO
+function loadImage(src){
 
-$('photos').addEventListener('change',event => {
+ return new Promise((resolve,reject)=>{
 
- selectedFiles = Array.from(event.target.files || [])
-  .filter(isSupportedImage)
-  .slice(0,50);
+  const img=new Image();
 
- outputs = [];
+  img.onload=()=>resolve(img);
+  img.onerror=()=>reject(new Error('Impossibile leggere l’immagine.'));
 
- previewUrls.forEach(url => URL.revokeObjectURL(url));
- previewUrls = [];
+  img.src=src;
 
- $('count').textContent = selectedFiles.length
-  ? selectedFiles.length+' fotografie selezionate · Massimo 50'
-  : 'Nessuna fotografia selezionata · Massimo 50';
+ });
 
- $('rows').innerHTML = '';
- $('results').innerHTML = '';
- $('download').disabled = true;
+}
 
- $('status').textContent = selectedFiles.length
-  ? 'Foto riconosciute correttamente. Premi ELABORA LE FOTOGRAFIE.'
-  : 'Nessuna foto rilevata. Seleziona JPG, PNG, WebP o HEIC.';
+async function resizePhoto(file){
 
-});
+ const bitmap=await createImageBitmap(file);
 
-// TEXTURE
+ const max=2200;
 
-$('texture').addEventListener('input',event => {
- $('tv').textContent = event.target.value;
-});
+ const scale=Math.min(
+ 1,
+ max/Math.max(bitmap.width,bitmap.height)
+ );
 
-// CARICAMENTO MOTORE AI - CORRETTO
+ const w=Math.round(bitmap.width*scale);
+ const h=Math.round(bitmap.height*scale);
 
-async function loadAI() {
+ const canvas=document.createElement('canvas');
 
- if(removeBackground) return;
+ canvas.width=w;
+ canvas.height=h;
 
- $('status').textContent =
- 'Caricamento del motore AI. Attendi...';
+ canvas.getContext('2d').drawImage(bitmap,0,0,w,h);
 
- const sources = [
-  'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm',
-  'https://esm.sh/@imgly/background-removal@1.7.0?bundle'
- ];
+ bitmap.close();
 
- let lastError = null;
+ return await new Promise((resolve,reject)=>{
 
- for(const source of sources) {
+  canvas.toBlob(blob=>{
 
-  try {
+   if(blob)resolve(blob);
+   else reject(new Error('Ridimensionamento fallito.'));
 
-   const module = await import(source);
+  },'image/jpeg',0.95);
 
-   // Supporta esportazione predefinita e nominata.
+ });
 
-   const candidates = [
-    module.removeBackground,
-    module.default,
-    module.default?.removeBackground,
-    module.default?.default
-   ];
+}
 
-   const fn = candidates.find(
-    candidate => typeof candidate === 'function'
-   );
+function makeFloor(w,h,level){
 
-   if(fn) {
-    removeBackground = fn;
-    return;
-   }
+ const c=document.createElement('canvas');
 
-   lastError = new Error(
-    'Il modulo non espone la funzione removeBackground.'
-   );
+ c.width=w;
+ c.height=h;
 
-  } catch(error) {
+ const ctx=c.getContext('2d');
 
-   lastError = error;
-   console.error('Errore caricamento AI:',source,error);
+ const g=ctx.createLinearGradient(0,0,w,h);
+
+ g.addColorStop(0,'#dedad1');
+ g.addColorStop(.5,'#d7d2c9');
+ g.addColorStop(1,'#cec9c0');
+
+ ctx.fillStyle=g;
+ ctx.fillRect(0,0,w,h);
+
+ let seed=82731;
+
+ const rand=()=>{
+
+  seed=(seed*1664525+1013904223)>>>0;
+
+  return seed/4294967296;
+
+ };
+
+ const amount=level===1?240:level===2?150:100;
+
+ for(let i=0;i<w*h/amount;i++){
+
+  const a=rand()*0.025;
+
+  ctx.fillStyle=rand()>.5?
+  'rgba(255,255,255,'+a+')':
+  'rgba(85,78,68,'+a+')';
+
+  ctx.beginPath();
+
+  ctx.ellipse(
+   rand()*w,
+   rand()*h,
+   1+rand(),
+   .5+rand(),
+   rand()*3,
+   0,
+   Math.PI*2
+  );
+
+  ctx.fill();
+
+ }
+
+ return c;
+
+}
+
+/*
+Recupera le zone trasparenti completamente
+circondate dal capo.
+
+Le zone trasparenti collegate ai bordi
+della fotografia rimangono sfondo.
+*/
+
+function repairMask(mask,original,w,h){
+
+ const ctx=mask.getContext('2d');
+
+ const data=ctx.getImageData(0,0,w,h);
+
+ const alpha=data.data;
+
+ const total=w*h;
+
+ const outside=new Uint8Array(total);
+
+ const queue=new Int32Array(total);
+
+ let head=0;
+ let tail=0;
+
+ function add(i){
+
+  if(!outside[i] && alpha[i*4+3]<100){
+
+   outside[i]=1;
+   queue[tail++]=i;
 
   }
 
  }
 
- throw new Error(
-  'Motore AI non disponibile. '+
-  'Controlla la connessione Internet. '+
-  (lastError?.message || '')
- );
+ for(let x=0;x<w;x++){
+
+  add(x);
+  add((h-1)*w+x);
+
+ }
+
+ for(let y=0;y<h;y++){
+
+  add(y*w);
+  add(y*w+w-1);
+
+ }
+
+ while(head<tail){
+
+  const i=queue[head++];
+
+  const x=i%w;
+
+  if(x>0)add(i-1);
+  if(x<w-1)add(i+1);
+  if(i>=w)add(i-w);
+  if(i<total-w)add(i+w);
+
+ }
+
+ const originalCtx=original.getContext('2d');
+
+ const source=originalCtx.getImageData(0,0,w,h);
+
+ const pixels=source.data;
+
+ let repaired=0;
+
+ for(let i=0;i<total;i++){
+
+  const p=i*4;
+
+  if(alpha[p+3]<100 && !outside[i]){
+
+   alpha[p+3]=255;
+
+   alpha[p]=pixels[p];
+   alpha[p+1]=pixels[p+1];
+   alpha[p+2]=pixels[p+2];
+
+   repaired++;
+
+  }
+
+ }
+
+ ctx.putImageData(data,0,0);
+
+ return repaired;
 
 }
 
-// PREPARAZIONE FOTO
+async function process(file){
 
-async function prepareImage(file) {
+ await loadAI();
 
- const usableFile = await convertIfNeeded(file);
- const url = URL.createObjectURL(usableFile);
+ const resized=await resizePhoto(file);
 
- try {
+ const transparent=await removeBackground(resized);
 
-  const image = new Image();
-  image.src = url;
+ const originalURL=URL.createObjectURL(resized);
+ const maskURL=URL.createObjectURL(transparent);
 
-  try {
-   await image.decode();
-  } catch(error) {
-   throw new Error(
-    'Impossibile aprire la fotografia: '+
-    (usableFile.type || 'formato sconosciuto')
-   );
-  }
+ try{
 
-  // Riduzione controllata per iPhone.
+  const original=await loadImage(originalURL);
+  const maskImage=await loadImage(maskURL);
 
-  const maxSize = 1800;
+  const w=original.naturalWidth;
+  const h=original.naturalHeight;
 
-  const scale = Math.min(
-   1,
-   maxSize / Math.max(image.naturalWidth,image.naturalHeight)
+  const originalCanvas=document.createElement('canvas');
+
+  originalCanvas.width=w;
+  originalCanvas.height=h;
+
+  const originalCtx=originalCanvas.getContext('2d');
+
+  originalCtx.drawImage(original,0,0,w,h);
+
+  const maskCanvas=document.createElement('canvas');
+
+  maskCanvas.width=w;
+  maskCanvas.height=h;
+
+  const maskCtx=maskCanvas.getContext('2d');
+
+  maskCtx.drawImage(maskImage,0,0,w,h);
+
+  const repaired=repairMask(
+   maskCanvas,
+   originalCanvas,
+   w,
+   h
   );
 
-  const width = Math.max(
-   1,Math.round(image.naturalWidth*scale)
+  const result=document.createElement('canvas');
+
+  result.width=w;
+  result.height=h;
+
+  const ctx=result.getContext('2d');
+
+  const floor=makeFloor(
+   w,
+   h,
+   Number($('texture').value)
   );
 
-  const height = Math.max(
-   1,Math.round(image.naturalHeight*scale)
-  );
+  ctx.drawImage(floor,0,0);
 
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
+  ctx.drawImage(originalCanvas,0,0);
 
-  const ctx = canvas.getContext('2d');
+  ctx.globalCompositeOperation='destination-in';
 
-  if(!ctx) throw new Error('Canvas non disponibile.');
+  ctx.drawImage(maskCanvas,0,0);
 
-  ctx.drawImage(image,0,0,width,height);
+  ctx.globalCompositeOperation='source-over';
 
-  return await new Promise((resolve,reject) => {
+  const blob=await new Promise((resolve,reject)=>{
 
-   canvas.toBlob(blob => {
-    if(blob) resolve(blob);
-    else reject(new Error('Conversione JPEG non riuscita.'));
+   result.toBlob(b=>{
+
+    if(b)resolve(b);
+    else reject(new Error('Esportazione fallita.'));
+
    },'image/jpeg',0.95);
 
   });
 
- } finally {
-  URL.revokeObjectURL(url);
- }
-
-}
-
-// SFONDO GREIGE
-
-function makeFloor(width,height,level) {
-
- const canvas = document.createElement('canvas');
- canvas.width = width;
- canvas.height = height;
-
- const ctx = canvas.getContext('2d');
-
- const gradient = ctx.createLinearGradient(
-  0,0,width,height
- );
-
- gradient.addColorStop(0,'#dedbd3');
- gradient.addColorStop(.5,'#d7d3ca');
- gradient.addColorStop(1,'#d1cdc4');
-
- ctx.fillStyle = gradient;
- ctx.fillRect(0,0,width,height);
-
- const tile = document.createElement('canvas');
- tile.width = 256;
- tile.height = 256;
-
- const tileCtx = tile.getContext('2d');
- const pixels = tileCtx.createImageData(256,256);
-
- let seed = 82731;
-
- function random() {
-  seed = (seed*1664525+1013904223)>>>0;
-  return seed/4294967296;
- }
-
- const intensity = [3,5,8][level-1];
-
- for(let i=0;i<pixels.data.length;i+=4) {
-
-  const noise = (random()-.5)*intensity;
-
-  pixels.data[i] = 210+noise;
-  pixels.data[i+1] = 207+noise;
-  pixels.data[i+2] = 198+noise;
-  pixels.data[i+3] = 255;
-
- }
-
- tileCtx.putImageData(pixels,0,0);
-
- ctx.globalAlpha = .22;
- ctx.fillStyle = ctx.createPattern(tile,'repeat');
- ctx.fillRect(0,0,width,height);
- ctx.globalAlpha = 1;
-
- return canvas;
-}
-
-// ELABORAZIONE SINGOLA FOTO
-
-async function processPhoto(originalFile) {
-
- const input = await prepareImage(originalFile);
-
- await loadAI();
-
- $('status').textContent =
- 'Rimozione sfondo AI: '+originalFile.name;
-
- const config = {
-
-  publicPath:MODEL_PATH,
-
-  model:'isnet_quint8',
-
-  device:'cpu',
-
-  debug:false,
-
-  output:{
-   format:'image/png',
-   type:'foreground'
-  },
-
-  progress:(key,current,total) => {
-
-   if(total>0) {
-    $('status').textContent =
-     'Caricamento modello AI: '+
-     Math.round(current/total*100)+'%';
-   }
-
-  }
-
- };
-
- const transparent = await removeBackground(input,config);
-
- if(!transparent || !transparent.size) {
-  throw new Error('Il motore AI non ha restituito un’immagine.');
- }
-
- const url = URL.createObjectURL(transparent);
-
- try {
-
-  const image = new Image();
-  image.src = url;
-  await image.decode();
-
-  const width = image.naturalWidth;
-  const height = image.naturalHeight;
-
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-
-  const ctx = canvas.getContext('2d');
-
-  if(!ctx) throw new Error('Canvas non disponibile.');
-
-  ctx.drawImage(
-   makeFloor(width,height,Number($('texture').value)),
-   0,0
-  );
-
-  // Il capo mantiene posizione e proporzioni.
-
-  ctx.drawImage(image,0,0,width,height);
-
-  const blob = await new Promise((resolve,reject) => {
-
-   canvas.toBlob(result => {
-    if(result) resolve(result);
-    else reject(new Error('Esportazione JPEG fallita.'));
-   },'image/jpeg',0.94);
-
-  });
-
   return {
-   name:originalFile.name.replace(/\.[^.]+$/,'')+'_vinted.jpg',
-   blob
+
+   name:file.name.replace(/\.[^.]+$/,'')+'_vinted.jpg',
+
+   blob,
+
+   repaired
+
   };
 
- } finally {
-  URL.revokeObjectURL(url);
+ }finally{
+
+  URL.revokeObjectURL(originalURL);
+  URL.revokeObjectURL(maskURL);
+
  }
 
 }
 
-// ELABORAZIONE COMPLETA
+$('start').addEventListener('click',async()=>{
 
-$('start').addEventListener('click',async() => {
+ if(!files.length || busy)return;
 
- if(busy) return;
+ busy=true;
 
- if(!selectedFiles.length) {
-  $('status').textContent =
-   'Prima seleziona almeno una fotografia nel riquadro 01.';
-  return;
- }
+ outputs=[];
 
- busy = true;
- outputs = [];
+ $('start').disabled=true;
+ $('download').disabled=true;
 
- previewUrls.forEach(url => URL.revokeObjectURL(url));
- previewUrls = [];
+ $('rows').innerHTML='';
+ $('results').innerHTML='';
 
- $('start').disabled = true;
- $('download').disabled = true;
- $('rows').innerHTML = '';
- $('results').innerHTML = '';
+ let errors=0;
 
- let errors = 0;
+ try{
 
- try {
+  await loadAI();
 
-  for(let index=0;index<selectedFiles.length;index++) {
+  for(let i=0;i<files.length;i++){
 
-   const file = selectedFiles[index];
+   const line=document.createElement('div');
 
-   const line = document.createElement('div');
-   line.className = 'row';
+   line.className='row';
 
-   const name = document.createElement('span');
-   name.textContent = file.name;
+   const name=document.createElement('span');
 
-   const state = document.createElement('b');
-   state.textContent = 'In attesa';
+   name.textContent=files[i].name;
+
+   const state=document.createElement('b');
+
+   state.textContent='In corso';
 
    line.append(name,state);
+
    $('rows').append(line);
 
-   try {
+   $('status').textContent=
+   'Elaborazione fotografia '+(i+1)+' di '+files.length+
+   '. Non chiudere la pagina.';
 
-    state.textContent = 'In corso';
+   try{
 
-    $('status').textContent =
-     'Elaborazione fotografia '+
-     (index+1)+' di '+selectedFiles.length+
-     ': '+file.name;
-
-    const result = await processPhoto(file);
+    const result=await process(files[i]);
 
     outputs.push(result);
 
-    state.textContent = 'Pronta';
-    state.className = 'success';
+    state.textContent='Pronta';
+    state.className='success';
 
-    const box = document.createElement('div');
-    box.className = 'preview';
+    const box=document.createElement('div');
 
-    const title = document.createElement('p');
-    title.className = 'sub';
-    title.textContent = result.name;
+    box.className='preview';
 
-    const preview = document.createElement('img');
-    const previewUrl = URL.createObjectURL(result.blob);
+    const title=document.createElement('p');
 
-    previewUrls.push(previewUrl);
-    preview.src = previewUrl;
-    preview.alt = result.name;
+    title.className='sub';
+    title.textContent=result.name;
 
-    box.append(title,preview);
+    const image=document.createElement('img');
+
+    const url=URL.createObjectURL(result.blob);
+
+    image.src=url;
+
+    box.append(title,image);
+
     $('results').append(box);
 
-   } catch(error) {
+   }catch(err){
 
     errors++;
 
-    state.textContent = 'Errore';
-    state.className = 'error';
+    state.textContent='Errore';
+    state.className='error';
 
-    const detail = document.createElement('p');
-    detail.className = 'error sub';
-    detail.textContent =
-     error.message || 'Errore non identificato.';
+    const message=document.createElement('p');
 
-    line.append(detail);
+    message.className='error';
 
-    console.error('Errore foto:',file.name,error);
+    message.textContent=err.message||'Errore di elaborazione.';
+
+    line.append(message);
+
+    console.error(err);
 
    }
 
   }
 
-  $('status').textContent =
-   'Elaborazione terminata.\n'+
-   'Fotografie riuscite: '+outputs.length+
-   ' su '+selectedFiles.length+'.\n'+
-   'Fotografie con errori: '+errors+'.\n'+
-   'Controlla le anteprime prima di scaricare.';
+  $('status').textContent=
+  'Elaborazione terminata.\n'+
+  'Fotografie riuscite: '+outputs.length+' su '+files.length+'.\n'+
+  'Fotografie con errori: '+errors+'.\n'+
+  'Controlla attentamente le anteprime prima di scaricare.';
 
-  $('download').disabled = outputs.length===0;
+  $('download').disabled=outputs.length===0;
 
- } catch(error) {
+ }catch(err){
 
-  $('status').textContent =
-   'Errore generale: '+error.message;
+  $('status').textContent=
+  'Errore del motore AI: '+err.message;
 
- } finally {
+ }finally{
 
-  busy = false;
-  $('start').disabled = false;
+  busy=false;
+
+  $('start').disabled=false;
 
  }
 
 });
 
-// DOWNLOAD ZIP
+$('download').addEventListener('click',async()=>{
 
-$('download').addEventListener('click',async() => {
+ if(!outputs.length)return;
 
- if(!outputs.length) return;
+ if(!window.JSZip){
 
- if(!window.JSZip) {
-  $('status').textContent =
-   'Libreria ZIP non disponibile. Ricarica la pagina.';
+  $('status').textContent='Libreria ZIP non disponibile.';
   return;
+
  }
 
- $('download').disabled = true;
- $('status').textContent = 'Preparazione archivio ZIP...';
+ $('download').disabled=true;
 
- try {
+ $('status').textContent='Preparazione archivio ZIP...';
 
-  const zip = new JSZip();
+ try{
 
-  outputs.forEach(file => {
-   zip.file(file.name,file.blob);
-  });
+  const zip=new JSZip();
 
-  const blob = await zip.generateAsync({
+  outputs.forEach(o=>zip.file(o.name,o.blob));
+
+  const blob=await zip.generateAsync({
    type:'blob',
-   compression:'DEFLATE',
-   compressionOptions:{level:3}
+   compression:'DEFLATE'
   });
 
-  const url = URL.createObjectURL(blob);
+  const url=URL.createObjectURL(blob);
 
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'Vinted-Studio-AI.zip';
+  const a=document.createElement('a');
 
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
+  a.href=url;
+  a.download='Vinted-Studio-AI.zip';
 
-  setTimeout(() => {
-   URL.revokeObjectURL(url);
-  },60000);
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 
-  $('status').textContent =
-   'Archivio ZIP creato. Controlla i download di Safari.';
+  setTimeout(()=>URL.revokeObjectURL(url),30000);
 
- } catch(error) {
+  $('status').textContent='Archivio ZIP pronto!';
 
-  $('status').textContent =
-   'Errore ZIP: '+error.message;
+ }catch(err){
 
- } finally {
+  $('status').textContent='Errore ZIP: '+err.message;
 
-  $('download').disabled = false;
+ }finally{
+
+  $('download').disabled=false;
 
  }
 
